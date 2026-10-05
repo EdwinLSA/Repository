@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Clasificador de Productos Multipaís</title>
+<meta name="description" content="Caso de estudio: cómo un Senior Data Analyst automatizó la codificación y validación de productos de ecommerce en LATAM con machine learning y Claude Code.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Automatizar la codificación de productos sin bajar el estándar de calidad">
+<meta property="og:description" content="Caso de estudio: cómo un Senior Data Analyst automatizó la codificación y validación de productos de ecommerce en LATAM con machine learning y Claude Code.">
+<meta name="author" content="Edwin López Salazar">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+/* Layout: una columna de lectura (~68ch) con figuras que se ensanchan; las cuatro decisiones del modelo como sistema de color. */
+:root {
+  --bg: #F4F6F7;
+  --surface: #FFFFFF;
+  --ink: #15212B;
+  --muted: #56636E;
+  --line: #D6DDE1;
+  --accent: #1F5F74;
+  --accent-soft: #E1EDF1;
+  --ok: #2B7A4B;   --ok-bg: #E2F1E7;
+  --warn: #8F6200; --warn-bg: #FAEFD3;
+  --bad: #AE3636;  --bad-bg: #F7E2E2;
+  --unk: #5B6770;  --unk-bg: #E6EBEE;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+  --measure: 68ch;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F161B; --surface: #172128; --ink: #E5ECEF; --muted: #9AA8B2; --line: #2A3740;
+    --accent: #72B8CC; --accent-soft: #1A3540;
+    --ok: #6CC593; --ok-bg: #16302A; --warn: #E0B44E; --warn-bg: #33290F;
+    --bad: #EE8A8A; --bad-bg: #3A1C1E; --unk: #A7B3BC; --unk-bg: #252F36;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F161B; --surface: #172128; --ink: #E5ECEF; --muted: #9AA8B2; --line: #2A3740;
+  --accent: #72B8CC; --accent-soft: #1A3540;
+  --ok: #6CC593; --ok-bg: #16302A; --warn: #E0B44E; --warn-bg: #33290F;
+  --bad: #EE8A8A; --bad-bg: #3A1C1E; --unk: #A7B3BC; --unk-bg: #252F36;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 1.0625rem/1.65 var(--f-body);
+  padding-inline: 20px;
+  padding-block: 0;
+}
+.wrap { max-width: 980px; margin: 0 auto; padding-block: 56px 80px; display: grid; gap: 64px; }
+.col { max-width: var(--measure); min-width: 0; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(2.2rem, 5.2vw, 3.6rem); line-height: 1.05; font-weight: 750; }
+h2 { font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1.15; font-weight: 750; }
+h3 { font-size: 1.15rem; line-height: 1.3; font-weight: 600; }
+p { margin: 0; }
+.stack { display: grid; gap: 16px; }
+.eyebrow {
+  font: 500 0.75rem/1 var(--f-mono); text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent);
+}
+.lede { font-size: 1.2rem; line-height: 1.55; color: var(--ink); }
+.muted { color: var(--muted); }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* Hero */
+.hero { display: grid; gap: 22px; }
+.meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 18px 28px; margin: 8px 0 0; padding-top: 22px; border-top: 1px solid var(--line); }
+.meta div { min-width: 0; }
+.meta dt { font: 500 0.72rem/1.2 var(--f-mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+.meta dd { margin: 6px 0 0; font-size: 0.98rem; line-height: 1.45; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 500 0.78rem/1 var(--f-mono); padding: 7px 10px; border-radius: 4px; letter-spacing: 0.02em; }
+.chip.ok { color: var(--ok); background: var(--ok-bg); }
+.chip.warn { color: var(--warn); background: var(--warn-bg); }
+.chip.unk { color: var(--unk); background: var(--unk-bg); }
+.chip.bad { color: var(--bad); background: var(--bad-bg); }
+
+/* Ejemplo de texto roto */
+.mojibake { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 14px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; font-family: var(--f-mono); }
+.mojibake .from { color: var(--bad); text-decoration: line-through; }
+.mojibake .to { color: var(--ok); font-weight: 500; }
+.mojibake .note { font-family: var(--f-body); font-size: 0.88rem; color: var(--muted); flex-basis: 100%; }
+
+ul.clean { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
+
+/* Flujo de trabajo con IA */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border-top: 1px solid var(--line); counter-reset: step; }
+.steps li { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 4px 18px; padding-block: 18px; border-bottom: 1px solid var(--line); counter-increment: step; }
+.steps li::before { content: counter(step, decimal-leading-zero); font: 500 0.95rem/1.6 var(--f-mono); color: var(--accent); grid-row: span 2; }
+.steps h3 { font-size: 1.05rem; }
+.steps p { color: var(--ink); font-size: 0.98rem; }
+.who { display: inline-block; margin-left: 8px; font: 500 0.68rem/1 var(--f-mono); text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 6px; border-radius: 3px; vertical-align: 2px; }
+.who.me { color: var(--accent); background: var(--accent-soft); }
+.who.ai { color: var(--unk); background: var(--unk-bg); }
+
+/* Diagrama */
+figure { margin: 0; display: grid; gap: 12px; }
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px 14px; }
+.diagram svg { display: block; min-width: 880px; width: 100%; height: auto; }
+figcaption { font-size: 0.88rem; color: var(--muted); max-width: var(--measure); }
+.n { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+.n.key { fill: var(--accent-soft); stroke: var(--accent); }
+.t { fill: var(--ink); font: 600 13.5px var(--f-body); }
+.s { fill: var(--muted); font: 400 11.5px var(--f-body); }
+.w { fill: none; stroke: var(--muted); stroke-width: 1.2; }
+.ah { fill: var(--muted); }
+.ck { font: 500 11px var(--f-mono); }
+.ck-ok { fill: var(--ok); } .bx-ok { fill: var(--ok-bg); }
+.ck-warn { fill: var(--warn); } .bx-warn { fill: var(--warn-bg); }
+.ck-unk { fill: var(--unk); } .bx-unk { fill: var(--unk-bg); }
+.ck-bad { fill: var(--bad); } .bx-bad { fill: var(--bad-bg); }
+
+/* Hallazgos */
+.findings { display: grid; border-top: 1px solid var(--line); }
+.finding { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 8px 28px; padding-block: 22px; border-bottom: 1px solid var(--line); }
+.finding .stat { font: 750 1.55rem/1.1 var(--f-display); color: var(--accent); font-variant-numeric: tabular-nums; }
+.finding .stat small { display: block; margin-top: 6px; font: 500 0.7rem/1.3 var(--f-mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.finding .body { display: grid; gap: 6px; min-width: 0; }
+.finding.neg .stat { color: var(--bad); }
+@media (max-width: 620px) { .finding { grid-template-columns: 1fr; } }
+
+/* Despliegue */
+.deploy { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; gap: 12px; }
+.piece { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.piece.mid { background: var(--accent-soft); border-color: var(--accent); }
+.piece h3 { font-size: 1.02rem; }
+.piece p, .piece li { font-size: 0.93rem; line-height: 1.5; }
+.piece ul { margin: 0; padding-left: 1.05em; display: grid; gap: 4px; }
+.arrow { align-self: center; color: var(--muted); font: 500 1.2rem var(--f-mono); }
+@media (max-width: 760px) {
+  .deploy { grid-template-columns: 1fr; }
+  .arrow { justify-self: center; transform: rotate(90deg); }
+}
+
+/* Tabla */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.97rem; min-width: 520px; }
+th, td { text-align: left; padding: 12px 14px 12px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 500 0.72rem/1.2 var(--f-mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+td.num { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+
+/* Stack */
+.tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.tag { font: 400 0.85rem/1 var(--f-mono); padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); }
+
+/* Post */
+.post { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 22px; display: grid; gap: 14px; }
+.post-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+.post-actions { display: flex; gap: 12px; align-items: center; }
+.post textarea { width: 100%; min-height: 460px; resize: vertical; border: 1px solid var(--line); border-radius: 6px; padding: 14px; background: var(--bg); color: var(--ink); font: 400 0.95rem/1.55 var(--f-body); }
+button.copy { font: 600 0.9rem var(--f-body); color: var(--surface); background: var(--accent); border: 0; border-radius: 6px; padding: 10px 16px; cursor: pointer; }
+button.copy:hover { filter: brightness(1.08); }
+.copied { font-size: 0.88rem; color: var(--ok); }
+
+.privacy { border-left: 3px solid var(--accent); padding-left: 18px; }
+footer { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 18px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<main class="wrap">
+
+  <header class="hero">
+    <span class="eyebrow">Caso de estudio · Machine learning e IA aplicados al análisis de datos</span>
+    <h1>Automatizar la codificación de productos sin bajar el estándar de calidad</h1>
+    <p class="lede col">Cómo, desde el rol de Senior Data Analyst, combiné conocimiento del negocio, machine learning y Claude Code para construir una herramienta de codificación y validación de datos de ecommerce en LATAM que hoy mi equipo usa cada semana.</p>
+    <div class="chips" aria-label="Decisiones posibles de la herramienta">
+      <span class="chip ok">ACCEPT</span>
+      <span class="chip warn">REVIEW</span>
+      <span class="chip unk">UNKNOWN</span>
+      <span class="chip bad">NO_VALID_GIC</span>
+    </div>
+    <dl class="meta">
+      <div><dt>Rol</dt><dd>Senior Data Analyst: definición, modelado, validación y entrega</dd></div>
+      <div><dt>Periodo</dt><dd>Septiembre – octubre 2026</dd></div>
+      <div><dt>Alcance</dt><dd>Ecommerce LATAM: modelos por mercado, en uso semanal y en expansión</dd></div>
+      <div><dt>Herramientas</dt><dd>Python, scikit-learn y Claude Code como asistente de programación</dd></div>
+    </dl>
+  </header>
+
+  <section class="stack col" aria-labelledby="contexto">
+    <span class="eyebrow">El contexto</span>
+    <h2 id="contexto">Calidad de dato a escala de ecommerce</h2>
+    <p>El ecommerce genera un volumen de productos que crece más rápido que cualquier catálogo. Cada semana aparecen miles de artículos nuevos, descritos por miles de vendedores distintos, y cada uno debe quedar asignado a una marca y una categoría correctas para que la medición sea confiable.</p>
+    <p>Mantener la calidad exige que la automatización trabaje con umbrales de confianza altos. Lo que queda fuera de esos umbrales es una cola larga de casos difíciles, y es justo donde el criterio de un analista aporta más valor. La pregunta que me hice fue cómo ampliar lo que se resuelve con confianza usando herramientas que hoy están al alcance del propio analista.</p>
+    <p>Los datos tenían la forma típica del ecommerce:</p>
+    <ul class="clean">
+      <li><strong>Texto con ruido.</strong> Cerca del 30% de las descripciones históricas traía caracteres dañados por doble codificación.</li>
+      <li><strong>Cola larga.</strong> Miles de marcas, alrededor de un tercio con un único ejemplo validado.</li>
+      <li><strong>Destinos especiales.</strong> Casi una de cada cinco filas se clasifica por departamento y no por marca.</li>
+      <li><strong>Taxonomías distintas por mercado.</strong> Cada mercado tiene su propio catálogo, así que cada uno necesita su propio modelo.</li>
+    </ul>
+    <div class="mojibake" role="note">
+      <span class="from">TÃƒÂ©rmica</span><span aria-hidden="true">→</span><span class="to">Térmica</span>
+      <span class="note">Ejemplo ilustrativo del tipo de daño que la herramienta repara antes de clasificar.</span>
+    </div>
+  </section>
+
+  <section class="stack" aria-labelledby="flujo">
+    <div class="stack col">
+      <span class="eyebrow">Cómo trabajé con IA</span>
+      <h2 id="flujo">El analista define el criterio; la IA acelera la construcción</h2>
+      <p>Claude Code escribió buena parte del código, pero cada paso tuvo una decisión humana antes de avanzar. Este fue el flujo:</p>
+    </div>
+    <ol class="steps col">
+      <li>
+        <h3>Especificar antes de programar <span class="who me">Analista</span></h3>
+        <p>Escribí un brief del proyecto con el objetivo de negocio, las reglas de calidad, los riesgos de fuga de información, las métricas que importan y una lista de lo que la IA no debía hacer, como forzar cada producto a una clase u ocultar predicciones dudosas.</p>
+      </li>
+      <li>
+        <h3>Auditar los datos antes de modelar <span class="who ai">Claude Code</span></h3>
+        <p>La primera tarea no fue entrenar: fue inspeccionar los archivos, detectar columnas que filtraban la respuesta y medir duplicados y texto dañado. El entrenamiento empezó solo después de revisar ese reporte.</p>
+      </li>
+      <li>
+        <h3>Iterar con evidencia <span class="who ai">Claude Code</span> <span class="who me">Analista</span></h3>
+        <p>Cada idea se evaluó contra datos reservados y datos externos etiquetados. Las que no mejoraban se descartaron y quedaron documentadas, aunque sonaran bien en teoría.</p>
+      </li>
+      <li>
+        <h3>Validar con el negocio <span class="who me">Analista</span></h3>
+        <p>Las reglas que más mejoraron la calidad salieron de revisar casos reales con el equipo: cómo tratar productos genéricos, accesorios frente a alimento de mascotas y destinos fuera de catálogo. Cada regla quedó en el código con su prueba automática.</p>
+      </li>
+      <li>
+        <h3>Entregar algo que otros puedan usar <span class="who ai">Claude Code</span> <span class="who me">Analista</span></h3>
+        <p>Una app de escritorio sin Python, verificada fila por fila contra el proceso original y probada en las computadoras del equipo antes de adoptarla.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section class="stack" aria-labelledby="arquitectura">
+    <div class="stack col">
+      <span class="eyebrow">La solución</span>
+      <h2 id="arquitectura">Modelos clásicos, unidos por el catálogo</h2>
+      <p>Marca y categoría son problemas distintos: la categoría tiene decenas de clases bien pobladas y la marca miles, muchas con un solo ejemplo. Cada una tiene su modelo, y la herramienta solo propone combinaciones que existen en el catálogo maestro. Lo incierto no se esconde: va a revisión con sus alternativas y su confianza.</p>
+    </div>
+    <figure>
+      <div class="diagram">
+        <svg viewBox="0 0 1015 284" role="img" aria-labelledby="dg-title">
+          <title id="dg-title">Flujo: descripción, normalización, vectorización, tres modelos, validación contra catálogo y umbrales, y una de cuatro decisiones.</title>
+          <defs>
+            <marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="ah" d="M0 0 L8 4 L0 8 z"/></marker>
+          </defs>
+
+          <rect class="n" x="6" y="104" width="150" height="76" rx="8"/>
+          <text class="t" x="81" y="135" text-anchor="middle">Descripción</text>
+          <text class="s" x="81" y="154" text-anchor="middle">texto libre del vendedor</text>
+
+          <rect class="n" x="186" y="104" width="150" height="76" rx="8"/>
+          <text class="t" x="261" y="130" text-anchor="middle">Normalización</text>
+          <text class="s" x="261" y="149" text-anchor="middle">codificación, acentos,</text>
+          <text class="s" x="261" y="164" text-anchor="middle">HTML, unidades</text>
+
+          <rect class="n" x="366" y="104" width="160" height="76" rx="8"/>
+          <text class="t" x="446" y="130" text-anchor="middle">Vectorización</text>
+          <text class="s" x="446" y="149" text-anchor="middle">TF-IDF de palabras</text>
+          <text class="s" x="446" y="164" text-anchor="middle">+ n-gramas de caracteres</text>
+
+          <rect class="n" x="556" y="14" width="168" height="64" rx="8"/>
+          <text class="t" x="640" y="41" text-anchor="middle">Marca</text>
+          <text class="s" x="640" y="60" text-anchor="middle">centroides · miles de clases</text>
+
+          <rect class="n" x="556" y="110" width="168" height="64" rx="8"/>
+          <text class="t" x="640" y="137" text-anchor="middle">Categoría</text>
+          <text class="s" x="640" y="156" text-anchor="middle">SVM lineal</text>
+
+          <rect class="n" x="556" y="206" width="168" height="64" rx="8"/>
+          <text class="t" x="640" y="233" text-anchor="middle">Departamento</text>
+          <text class="s" x="640" y="252" text-anchor="middle">SVM especialista</text>
+
+          <rect class="n key" x="754" y="88" width="146" height="108" rx="8"/>
+          <text class="t" x="827" y="114" text-anchor="middle">Catálogo y umbrales</text>
+          <text class="s" x="827" y="135" text-anchor="middle">¿existe el par</text>
+          <text class="s" x="827" y="150" text-anchor="middle">marca + categoría?</text>
+          <text class="s" x="827" y="168" text-anchor="middle">¿confianza y margen</text>
+          <text class="s" x="827" y="183" text-anchor="middle">sobre el umbral?</text>
+
+          <path class="w" d="M156 142 H184" marker-end="url(#ah)"/>
+          <path class="w" d="M336 142 H364" marker-end="url(#ah)"/>
+          <path class="w" d="M526 142 H538 V46 H554" marker-end="url(#ah)"/>
+          <path class="w" d="M538 142 H554" marker-end="url(#ah)"/>
+          <path class="w" d="M538 142 V238 H554" marker-end="url(#ah)"/>
+          <path class="w" d="M724 46 H738 V238 H724 M724 142 H752" marker-end="url(#ah)"/>
+          <path class="w" d="M900 142 H912 M912 66 V218 M912 66 H920 M912 116 H920 M912 168 H920 M912 218 H920"/>
+
+          <rect class="bx-ok" x="920" y="52" width="92" height="28" rx="4"/>
+          <text class="ck ck-ok" x="966" y="70" text-anchor="middle">ACCEPT</text>
+          <rect class="bx-warn" x="920" y="102" width="92" height="28" rx="4"/>
+          <text class="ck ck-warn" x="966" y="120" text-anchor="middle">REVIEW</text>
+          <rect class="bx-unk" x="920" y="154" width="92" height="28" rx="4"/>
+          <text class="ck ck-unk" x="966" y="172" text-anchor="middle">UNKNOWN</text>
+          <rect class="bx-bad" x="920" y="204" width="92" height="28" rx="4"/>
+          <text class="ck ck-bad" x="966" y="222" text-anchor="middle">NO_VALID_GIC</text>
+        </svg>
+      </div>
+      <figcaption>La categoría predicha decide qué modelo responde. Los n-gramas de caracteres son los que toleran el texto dañado y las variaciones de ortografía. Todo corre en CPU, en una computadora de oficina.</figcaption>
+    </figure>
+  </section>
+
+  <section class="stack" aria-labelledby="hallazgos">
+    <div class="stack col">
+      <span class="eyebrow">Lo que movió los resultados</span>
+      <h2 id="hallazgos">Decisiones medidas, incluidas las que no funcionaron</h2>
+    </div>
+    <div class="findings">
+      <article class="finding">
+        <div class="stat">72% → 85%<small>acierto de departamento</small></div>
+        <div class="body">
+          <h3>Elegir el modelo correcto pesó más que sumar datos</h3>
+          <p>Multiplicar por diez los ejemplos de un subproblema movió el acierto menos de un punto. Un modelo dedicado lo llevó de 72% a 85% y sumó 19% más aciertos aceptados.</p>
+        </div>
+      </article>
+      <article class="finding">
+        <div class="stat">≥ 95%<small>objetivo de precisión</small></div>
+        <div class="body">
+          <h3>Umbrales aprendidos, no fijados a mano</h3>
+          <p>Cada modelo aprende sus umbrales para cumplir un objetivo de precisión de 95% con la mayor cobertura posible, calibrados contra datos parecidos a producción. La señal más útil fue el margen entre la primera y la segunda opción, más que la confianza por sí sola.</p>
+        </div>
+      </article>
+      <article class="finding neg">
+        <div class="stat">41%<small>precisión de lo rescatado</small></div>
+        <div class="body">
+          <h3>No toda idea razonable mejora el resultado</h3>
+          <p>Buscar combinaciones válidas entre la segunda y la tercera opción del modelo sumaba cobertura con 41% de precisión. Restringir la marca a la categoría predicha no corrigió ninguna marca. Ambas quedaron documentadas y desactivadas.</p>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="stack" aria-labelledby="despliegue">
+    <div class="stack col">
+      <span class="eyebrow">De la idea al equipo</span>
+      <h2 id="despliegue">Una herramienta que cualquiera del equipo puede ejecutar</h2>
+      <p>Separé la app de los modelos: el analista que entrena publica versiones nuevas en la nube del equipo, y quien ejecuta solo elige el mercado y sus archivos. Actualizar un modelo o sumar un mercado no obliga a reinstalar nada.</p>
+    </div>
+    <div class="deploy">
+      <div class="piece">
+        <span class="eyebrow">Analista</span>
+        <h3>Entrenar y validar</h3>
+        <ul>
+          <li>Reentrenar y evaluar por mercado</li>
+          <li>Promover una versión con su motivo</li>
+          <li>Publicar solo las versiones activas</li>
+        </ul>
+      </div>
+      <span class="arrow" aria-hidden="true">→</span>
+      <div class="piece mid">
+        <span class="eyebrow">Nube del equipo</span>
+        <h3>Paquete de modelos</h3>
+        <p>Versión activa y catálogo de cada mercado, con un registro de las librerías usadas al entrenar. Sumar un mercado nuevo es publicar su modelo.</p>
+      </div>
+      <span class="arrow" aria-hidden="true">→</span>
+      <div class="piece">
+        <span class="eyebrow">Equipo</span>
+        <h3>Ejecutar cada semana</h3>
+        <ul>
+          <li>Elegir mercado y archivos</li>
+          <li>Resultado en CSV con su registro</li>
+          <li>Sin Python ni consola</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="stack" aria-labelledby="resultados">
+    <div class="stack col">
+      <span class="eyebrow">Resultados</span>
+      <h2 id="resultados">Resultados generales de los modelos</h2>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Indicador</th><th>Valor</th><th>Dónde se mide</th></tr></thead>
+        <tbody>
+          <tr><td>Precisión entre lo aceptado automáticamente</td><td class="num">≥ 95%</td><td class="muted">Datos reservados para evaluación</td></tr>
+          <tr><td>Acierto de categoría (primera opción)</td><td class="num">&gt; 90%</td><td class="muted">Datos reservados para evaluación</td></tr>
+          <tr><td>Acierto de marca (primera opción)</td><td class="num">~ 90%</td><td class="muted">Datos reservados para evaluación</td></tr>
+          <tr><td>Aceptación automática en semanas reales</td><td class="num">Más de la mitad</td><td class="muted">Archivos semanales</td></tr>
+          <tr><td>Combinaciones inexistentes propuestas</td><td class="num">0</td><td class="muted">Garantizado por diseño</td></tr>
+          <tr><td>Coincidencia de la app con el proceso original</td><td class="num">100%</td><td class="muted">Fila por fila, antes de distribuir</td></tr>
+          <tr><td>Pruebas automatizadas</td><td class="num">187</td><td class="muted">Limpieza, catálogo, fugas, predicción</td></tr>
+          <tr><td>Duración de una corrida semanal</td><td class="num">&lt; 1 min</td><td class="muted">Computadora de oficina</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="col muted">Lo que no se acepta automáticamente llega a revisión con la propuesta del modelo, sus alternativas y su confianza, así el tiempo del analista se concentra en los casos que de verdad requieren criterio.</p>
+  </section>
+
+  <section class="stack col" aria-labelledby="aprendi">
+    <span class="eyebrow">Aprendizajes</span>
+    <h2 id="aprendi">Lo que aprendí sobre trabajar con ML e IA</h2>
+    <ul class="clean">
+      <li><strong>La IA multiplica lo que el analista ya sabe.</strong> El conocimiento del negocio y de los datos fue lo que convirtió el código en una herramienta útil.</li>
+      <li><strong>Especificar bien ahorra iteraciones.</strong> Un brief claro, con reglas y límites, produjo mejor código que pedir “un modelo”.</li>
+      <li><strong>Medir todo, incluso lo que se espera que funcione.</strong> Dos ideas razonables empeoraban la precisión y solo la medición lo mostró.</li>
+      <li><strong>Los modelos clásicos alcanzan.</strong> TF-IDF, SVM lineal y centroides resolvieron el problema en CPU, sin necesidad de deep learning.</li>
+      <li><strong>La calidad se diseña.</strong> Pruebas automáticas, versiones controladas y verificación de paridad hicieron que el equipo confiara en la herramienta.</li>
+    </ul>
+  </section>
+
+  <section class="stack col" aria-labelledby="stack">
+    <span class="eyebrow">Herramientas</span>
+    <h2 id="stack">Stack</h2>
+    <div class="tags">
+      <span class="tag">Claude Code</span><span class="tag">Python</span><span class="tag">pandas</span>
+      <span class="tag">scikit-learn</span><span class="tag">TF-IDF</span><span class="tag">SVM lineal</span>
+      <span class="tag">Centroides de clase</span><span class="tag">pytest</span><span class="tag">tkinter</span>
+      <span class="tag">PyInstaller</span><span class="tag">Git</span>
+    </div>
+  </section>
+
+  <footer>Edwin López Salazar · Senior Data Analyst · Caso de estudio, octubre 2026</footer>
+</main>
+
+</body>
+</html>
